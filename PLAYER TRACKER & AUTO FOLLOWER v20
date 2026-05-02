@@ -1,11 +1,11 @@
 --[[
-    PLAYER TRACKER & AUTO FOLLOWER (V22 - UPRIGHT LOCKING)
+    PLAYER TRACKER & AUTO FOLLOWER (V23 - FULL MANAGEMENT)
     Dựa trên nền tảng V15 (gemini-code-1777716604997.lua)
     
-    CẬP NHẬT CHÍNH:
-    🧍 Upright Lock: Nhân vật luôn đứng thẳng 90 độ so với mặt đất, không bị nghiêng theo mục tiêu.
-    🚀 Fixed Height: Trục Height đi thẳng lên trời, không bị xiên vẹo.
-    🔄 Tilt Slider: Chỉ khi bạn chủ động kéo Tilt thì người mới nghiêng.
+    CẬP NHẬT:
+    🗑️ Delete Buttons: Thêm nút xóa (X) cho từng mục Pose và Point đã lưu.
+    🧍 Upright Lock: Giữ nhân vật luôn đứng thẳng, không bị ngửa khi lên cao.
+    📍 Sync Data: Tự động lưu file mỗi khi thêm hoặc xóa.
 --]]
 
 local Players = game:GetService("Players")
@@ -15,7 +15,7 @@ local HttpService = game:GetService("HttpService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local fileName = "FollowerFull_V22.json"
+local fileName = "FollowerFull_V23.json"
 
 local followSettings = {
     enabled = false,
@@ -33,22 +33,28 @@ local favorites = {}
 local savedPositions = {}
 
 -- =============================================
--- DATA SYSTEM
+-- DATA SYSTEM[cite: 1, 2]
 -- =============================================
 local function saveData()
-    writefile(fileName, HttpService:JSONEncode({favorites = favorites, savedPositions = savedPositions}))
+    local success, err = pcall(function()
+        writefile(fileName, HttpService:JSONEncode({favorites = favorites, savedPositions = savedPositions}))
+    end)
+    if not success then warn("Lỗi lưu file: " .. err) end
 end
 
-if isfile(fileName) then
-    pcall(function()
-        local data = HttpService:JSONDecode(readfile(fileName))
-        favorites = data.favorites or {}
-        savedPositions = data.savedPositions or {}
-    end)
+local function loadData()
+    if isfile(fileName) then
+        local success, data = pcall(function() return HttpService:JSONDecode(readfile(fileName)) end)
+        if success then
+            favorites = data.favorites or {}
+            savedPositions = data.savedPositions or {}
+        end
+    end
 end
+loadData()
 
 -- =============================================
--- CORE LOGIC (V22 - KHÓA ĐỨNG NGƯỜI)
+-- CORE LOGIC (V23 - ANTI-TILT UP)
 -- =============================================
 RunService.Heartbeat:Connect(function()
     if not followSettings.enabled then return end
@@ -67,36 +73,32 @@ RunService.Heartbeat:Connect(function()
         targetPos = followSettings.staticPos
     else return end
     
-    -- 1. Tính toán vị trí dựa trên góc xoay ngang của mục tiêu
     local rotation = CFrame.Angles(0, math.rad(followSettings.angle), 0)
     local baseCF = (targetHRP and targetHRP.CFrame or CFrame.new(targetPos)) * rotation
     
-    -- 2. Đảm bảo vị trí Goal tách biệt hoàn toàn trục Height
     local horizontalOffset = (baseCF.LookVector * followSettings.distance) + (baseCF.RightVector * followSettings.side)
     local goalPos = targetPos + horizontalOffset + Vector3.new(0, followSettings.height, 0)
     
-    -- 3. LOGIC QUAN TRỌNG: Khóa người đứng thẳng
-    -- Tạo một hướng nhìn chỉ xoay quanh trục Y (ngang), không xoay lên/xuống (X/Z)
+    -- Khóa người đứng thẳng (chỉ xoay trục Y)
     local lookDirection = (targetPos - goalPos).Unit
     local targetRotationY = math.atan2(lookDirection.X, lookDirection.Z)
     
-    -- Áp dụng CFrame: Vị trí mới + Xoay ngang + Độ nghiêng tùy chỉnh (Tilt)
     myHRP.CFrame = CFrame.new(goalPos) * CFrame.Angles(0, targetRotationY + math.pi, 0) * CFrame.Angles(math.rad(followSettings.tilt), 0, 0)
     myHRP.Velocity = Vector3.zero
 end)
 
 -- =============================================
--- GUI (Giữ nguyên phong cách V15 của bạn)
+-- GUI
 -- =============================================
-local SG = Instance.new("ScreenGui", LP.PlayerGui); SG.Name = "FollowerV22"; SG.ResetOnSpawn = false
-local MF = Instance.new("Frame", SG); MF.Size = UDim2.new(0, 340, 0, 700); MF.Position = UDim2.new(1, -350, 0.5, -350); MF.BackgroundColor3 = Color3.fromRGB(25, 25, 35); Instance.new("UICorner", MF)
-local TB = Instance.new("Frame", MF); TB.Size = UDim2.new(1, 0, 0, 35); TB.BackgroundColor3 = Color3.fromRGB(80, 50, 200); Instance.new("UICorner", TB)
-local TL = Instance.new("TextLabel", TB); TL.Size = UDim2.new(1, 0, 1, 0); TL.Text = "FOLLOW V22 - UPRIGHT LOCK"; TL.TextColor3 = Color3.new(1, 1, 1); TL.Font = "GothamBold"; TL.BackgroundTransparency = 1
+local SG = Instance.new("ScreenGui", LP.PlayerGui); SG.Name = "FollowerV23"; SG.ResetOnSpawn = false
+local MF = Instance.new("Frame", SG); MF.Size = UDim2.new(0, 340, 0, 720); MF.Position = UDim2.new(1, -350, 0.5, -360); MF.BackgroundColor3 = Color3.fromRGB(20, 20, 30); Instance.new("UICorner", MF)
+local TB = Instance.new("Frame", MF); TB.Size = UDim2.new(1, 0, 0, 35); TB.BackgroundColor3 = Color3.fromRGB(100, 60, 200); Instance.new("UICorner", TB)
+local TL = Instance.new("TextLabel", TB); TL.Size = UDim2.new(1, 0, 1, 0); TL.Text = "FOLLOW V23 - MANAGER"; TL.TextColor3 = Color3.new(1, 1, 1); TL.Font = "GothamBold"; TL.BackgroundTransparency = 1
 
 local function createSlider(text, min, max, key, pos)
     local label = Instance.new("TextLabel", MF); label.Size = UDim2.new(1,-20,0,15); label.Position = UDim2.new(0,10,0,pos+45); label.TextColor3 = Color3.new(1,1,1); label.Font = "GothamBold"; label.TextSize = 10; label.BackgroundTransparency = 1
     local bg = Instance.new("Frame", MF); bg.Size = UDim2.new(1,-20,0,6); bg.Position = UDim2.new(0,10,0,pos+63); bg.BackgroundColor3 = Color3.fromRGB(45,45,60); Instance.new("UICorner", bg)
-    local fill = Instance.new("Frame", bg); fill.BackgroundColor3 = Color3.fromRGB(120, 200, 255); Instance.new("UICorner", fill)
+    local fill = Instance.new("Frame", bg); fill.BackgroundColor3 = Color3.fromRGB(150, 80, 255); Instance.new("UICorner", fill)
     RunService.RenderStepped:Connect(function()
         fill.Size = UDim2.new(math.clamp((followSettings[key] - min)/(max - min), 0, 1), 0, 1, 0)
         label.Text = text .. ": " .. string.format("%.1f", followSettings[key])
@@ -112,32 +114,46 @@ local function createSlider(text, min, max, key, pos)
 end
 
 createSlider("↔️ Distance", -100, 100, "distance", 0)
-createSlider("↕️ Height (Fixed Upright)", -100, 100, "height", 40)
+createSlider("↕️ Height", -100, 100, "height", 40)
 createSlider("⬅️➡️ Side", -100, 100, "side", 80)
-createSlider("📐 Tilt (Nghiêng người)", -180, 180, "tilt", 120)
+createSlider("📐 Tilt", -180, 180, "tilt", 120)
 createSlider("🔄 Angle", -360, 360, "angle", 160)
 
-local TabPose = Instance.new("ScrollingFrame", MF); TabPose.Size = UDim2.new(0.5,-15,0,150); TabPose.Position = UDim2.new(0,10,0,245); TabPose.BackgroundColor3 = Color3.fromRGB(15,15,25); Instance.new("UIListLayout", TabPose).Padding = UDim.new(0,2)
-local TabPos = Instance.new("ScrollingFrame", MF); TabPos.Size = UDim2.new(0.5,-15,0,150); TabPos.Position = UDim2.new(0.5,5,0,245); TabPos.BackgroundColor3 = Color3.fromRGB(15,15,25); Instance.new("UIListLayout", TabPos).Padding = UDim.new(0,2)
+local TabFrame = Instance.new("Frame", MF); TabFrame.Size = UDim2.new(1, -20, 0, 180); TabFrame.Position = UDim2.new(0, 10, 0, 285); TabFrame.BackgroundTransparency = 1
+local TabPose = Instance.new("ScrollingFrame", TabFrame); TabPose.Size = UDim2.new(0.5, -5, 1, 0); TabPose.BackgroundColor3 = Color3.fromRGB(15, 15, 25); TabPose.ScrollBarThickness = 2
+local TabPos = Instance.new("ScrollingFrame", TabFrame); TabPos.Size = UDim2.new(0.5, -5, 1, 0); TabPos.Position = UDim2.new(0.5, 5, 0, 0); TabPos.BackgroundColor3 = Color3.fromRGB(15, 15, 25); TabPos.ScrollBarThickness = 2
+Instance.new("UIListLayout", TabPose).Padding = UDim.new(0, 2)
+Instance.new("UIListLayout", TabPos).Padding = UDim.new(0, 2)
 
+-- HÀM CẬP NHẬT DANH SÁCH VÀ NÚT XÓA
 local function updateUI()
     for _, v in pairs(TabPose:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
     for _, v in pairs(TabPos:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-    for i, f in ipairs(favorites) do
-        local fr = Instance.new("Frame", TabPose); fr.Size = UDim2.new(1,-5,0,28); fr.BackgroundColor3 = Color3.fromRGB(40,40,60); Instance.new("UICorner", fr)
-        local b = Instance.new("TextButton", fr); b.Size = UDim2.new(0.7,0,1,0); b.Text = f.name; b.TextColor3 = Color3.new(1,1,1); b.BackgroundTransparency = 1; b.TextSize = 10
-        b.MouseButton1Click:Connect(function() followSettings.distance, followSettings.height, followSettings.side, followSettings.tilt, followSettings.angle = f.distance, f.height, f.side, f.tilt, f.angle end)
+    
+    -- Danh sách Poses
+    for i, fav in ipairs(favorites) do
+        local f = Instance.new("Frame", TabPose); f.Size = UDim2.new(1, -5, 0, 28); f.BackgroundColor3 = Color3.fromRGB(45, 45, 60); Instance.new("UICorner", f)
+        local b = Instance.new("TextButton", f); b.Size = UDim2.new(0.75, 0, 1, 0); b.Text = fav.name; b.TextColor3 = Color3.new(1,1,1); b.BackgroundTransparency = 1; b.TextSize = 10
+        local d = Instance.new("TextButton", f); d.Size = UDim2.new(0.25, 0, 1, 0); d.Position = UDim2.new(0.75, 0, 0, 0); d.Text = "X"; d.TextColor3 = Color3.new(1, 0.2, 0.2); d.Font = "GothamBold"; d.BackgroundTransparency = 1
+        
+        b.MouseButton1Click:Connect(function() followSettings.distance, followSettings.height, followSettings.side, followSettings.tilt, followSettings.angle = fav.distance, fav.height, fav.side, fav.tilt, fav.angle end)
+        d.MouseButton1Click:Connect(function() table.remove(favorites, i); saveData(); updateUI() end)
     end
+    
+    -- Danh sách Points
     for i, p in ipairs(savedPositions) do
-        local fr = Instance.new("Frame", TabPos); fr.Size = UDim2.new(1,-5,0,28); fr.BackgroundColor3 = Color3.fromRGB(60,40,40); Instance.new("UICorner", fr)
-        local b = Instance.new("TextButton", fr); b.Size = UDim2.new(1,0,1,0); b.Text = p.name; b.TextColor3 = Color3.new(1,1,1); b.BackgroundTransparency = 1; b.TextSize = 10
+        local f = Instance.new("Frame", TabPos); f.Size = UDim2.new(1, -5, 0, 28); f.BackgroundColor3 = Color3.fromRGB(60, 45, 45); Instance.new("UICorner", f)
+        local b = Instance.new("TextButton", f); b.Size = UDim2.new(0.75, 0, 1, 0); b.Text = p.name; b.TextColor3 = Color3.new(1,1,1); b.BackgroundTransparency = 1; b.TextSize = 10
+        local d = Instance.new("TextButton", f); d.Size = UDim2.new(0.25, 0, 1, 0); d.Position = UDim2.new(0.75, 0, 0, 0); d.Text = "X"; d.TextColor3 = Color3.new(1, 0.2, 0.2); d.Font = "GothamBold"; d.BackgroundTransparency = 1
+        
         b.MouseButton1Click:Connect(function() followSettings.mode = "Static"; followSettings.staticPos = Vector3.new(p.x, p.y, p.z); followSettings.enabled = true end)
+        d.MouseButton1Click:Connect(function() table.remove(savedPositions, i); saveData(); updateUI() end)
     end
 end
 
-local NameBox = Instance.new("TextBox", MF); NameBox.Size = UDim2.new(1,-20,0,30); NameBox.Position = UDim2.new(0,10,0,410); NameBox.PlaceholderText = "Tên nhãn..."; NameBox.BackgroundColor3 = Color3.fromRGB(30,30,40); NameBox.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", NameBox)
-local BtnSavePose = Instance.new("TextButton", MF); BtnSavePose.Size = UDim2.new(0.5,-15,0,35); BtnSavePose.Position = UDim2.new(0,10,0,450); BtnSavePose.Text = "SAVE POSE"; BtnSavePose.BackgroundColor3 = Color3.fromRGB(50,150,50); BtnSavePose.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", BtnSavePose)
-local BtnSavePoint = Instance.new("TextButton", MF); BtnSavePoint.Size = UDim2.new(0.5,-15,0,35); BtnSavePoint.Position = UDim2.new(0.5,5,0,450); BtnSavePoint.Text = "SAVE POINT"; BtnSavePoint.BackgroundColor3 = Color3.fromRGB(150,100,50); BtnSavePoint.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", BtnSavePoint)
+local NameBox = Instance.new("TextBox", MF); NameBox.Size = UDim2.new(1,-20,0,30); NameBox.Position = UDim2.new(0,10,0,475); NameBox.PlaceholderText = "Tên nhãn..."; NameBox.BackgroundColor3 = Color3.fromRGB(30,30,40); NameBox.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", NameBox)
+local BtnSavePose = Instance.new("TextButton", MF); BtnSavePose.Size = UDim2.new(0.5,-15,0,35); BtnSavePose.Position = UDim2.new(0,10,0,515); BtnSavePose.Text = "SAVE POSE"; BtnSavePose.BackgroundColor3 = Color3.fromRGB(50,150,50); BtnSavePose.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", BtnSavePose)
+local BtnSavePoint = Instance.new("TextButton", MF); BtnSavePoint.Size = UDim2.new(0.5,-15,0,35); BtnSavePoint.Position = UDim2.new(0.5,5,0,515); BtnSavePoint.Text = "SAVE POINT"; BtnSavePoint.BackgroundColor3 = Color3.fromRGB(150,100,50); BtnSavePoint.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", BtnSavePoint)
 
 BtnSavePose.MouseButton1Click:Connect(function()
     table.insert(favorites, {name = NameBox.Text ~= "" and NameBox.Text or "Pose", distance = followSettings.distance, height = followSettings.height, side = followSettings.side, tilt = followSettings.tilt, angle = followSettings.angle})
@@ -152,7 +168,7 @@ BtnSavePoint.MouseButton1Click:Connect(function()
     end
 end)
 
-local pScroll = Instance.new("ScrollingFrame", MF); pScroll.Size = UDim2.new(1,-20,0,120); pScroll.Position = UDim2.new(0,10,0,500); pScroll.BackgroundColor3 = Color3.fromRGB(15,15,25); Instance.new("UIListLayout", pScroll)
+local pScroll = Instance.new("ScrollingFrame", MF); pScroll.Size = UDim2.new(1,-20,0,100); pScroll.Position = UDim2.new(0,10,0,560); pScroll.BackgroundColor3 = Color3.fromRGB(15,15,25); Instance.new("UIListLayout", pScroll)
 local function refreshPlayers()
     for _, v in pairs(pScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
     for _, p in ipairs(Players:GetPlayers()) do
@@ -162,7 +178,7 @@ local function refreshPlayers()
     end
 end
 
-local Stop = Instance.new("TextButton", MF); Stop.Size = UDim2.new(1,-20,0,40); Stop.Position = UDim2.new(0,10,0,640); Stop.Text = "STOP ALL"; Stop.BackgroundColor3 = Color3.fromRGB(180,50,50); Stop.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", Stop); Stop.MouseButton1Click:Connect(function() followSettings.enabled = false end)
+local Stop = Instance.new("TextButton", MF); Stop.Size = UDim2.new(1,-20,0,40); Stop.Position = UDim2.new(0,10,0,670); Stop.Text = "STOP ALL"; Stop.BackgroundColor3 = Color3.fromRGB(180,50,50); Stop.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", Stop); Stop.MouseButton1Click:Connect(function() followSettings.enabled = false end)
 
 -- Dragging logic
 local dragToggle, dragStart, startPos
